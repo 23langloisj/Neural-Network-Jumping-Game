@@ -3,19 +3,22 @@ import pygame
 import random
 import os
 import neat
+pygame.font.init()  # init font
+
 
 WINDOW = pygame.display.set_mode((960, 720))
 pygame.display.set_caption("AI Learns to play Jumping game")
+gravity = 20
+generation = 0
 
 player_img = pygame.transform.scale2x(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/player.png").convert_alpha())
 tree_img = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/tree.png").convert_alpha(), (60,120))
-base_img = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/base.png").convert_alpha(), (960, 150))
+ground_img = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/base.png").convert_alpha(), (960, 150))
 background_img = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/background.png").convert_alpha(), (960, 720))
 
 
 # Represents the cube that is the player and its methods
 class Player:
-    gravity = 20
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -44,6 +47,7 @@ class Player:
 
     def get_mask(self):
         return pygame.mask.from_surface(self.IMG)
+    
 
 class Tree:
     speed = 5
@@ -76,8 +80,8 @@ class Tree:
 # Represents the Ground that randomly spawns obstacles that the player
 class Ground:
     speed = 7.5
-    WIDTH = base_img.get_width()
-    IMG = base_img
+    WIDTH = ground_img.get_width()
+    IMG = ground_img
 
     def __init__(self, y):
         self.y = y
@@ -98,58 +102,154 @@ class Ground:
         window.blit(self.IMG, (self.x1, self.y))
         window.blit(self.IMG, (self.x2, self.y))
 
-# pygame setup
-pygame.init()
-clock = pygame.time.Clock()
-running = True
-gravity = 3
-
-
-# Player Info
-player = Player(300, 550)
-
-# Ground Info
-ground = Ground(570)
-
-# Tree Info
-tree = Tree(800)
-
-while running:
-    # poll for events
-    # pygame.QUIT event means the user clicked X to close your window
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-
-    # Draws background image onto game
-    WINDOW.blit(background_img, (0, 0))
+def draw_window(window, players, trees, score, ground, generation, tree_index):
+    # Generation 0 DNE
+    if generation == 0:
+        generation = 1
     
-    # Draws the flooring of the game
+    # Draw background onto the screen
+    window.blit(background_img, (0, 0))
+
+    # Draws the floor onto the screen
     ground.draw(WINDOW)
 
-    # Scrolls the floor to the left
-    ground.move()
-
-    # Draws Player and Handles them jumping
-    player.draw(WINDOW)
-    player.move()
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_SPACE] and player.velocity == 0:
-        player.jump()
+    for tree in trees:
+        tree.draw(WINDOW)
     
-    # Draws Obstacles and slides them towards player (Trees)
-    tree.draw(WINDOW)
-    tree.move()
+    for player in players:
+        # Draws Players COME BACK TO ADD VISION LINES
+        player.draw(WINDOW)
+    
+    # Draws the score of the game
+    score_label = pygame.font.SysFont("comicsans", 50).render("Score: " + str(score),1,(255,255,255))
+    window.blit(score_label, (480, 50))
 
-    # Handles Collision Logic
-    if tree.collision(player, WINDOW):
-        print("HE HIT THE THING")
+    # Draws the number of generations so far
+    score_label = pygame.font.SysFont("comicsans", 50).render("Gens: " + str(generation-1),1,(255,255,255))
+    window.blit(score_label, (10, 10))
+
+    # Draws number of players alive
+    score_label = pygame.font.SysFont("comicsans", 50).render("Alive: " + str(len(players)),1,(255,255,255))
+    window.blit(score_label, (10, 50))
+
+    pygame.display.update()
+
+def eval_genomes(genomes, config):
+    # Initialize necessary variables
+    global WINDOW, generation
+    window = WINDOW
+    generation += 1
+
+    # Create a list of genomes, their associated neural networks, and 
+    # Players that will be using the neural networks to play
+    ge = []
+    players = []
+    networks = []
+
+    for genome_id, genome in genomes:
+        genome.fitness = 0 # genomes start with no "skill"
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
+        networks.append(net)
+        players.append(Player(300, 570))
+        ge.append(genome)
+
+    ground = Ground(570)
+    trees = [Tree(800)]
+    score = 0
+
+    clock = pygame.time.Clock()
+
+    run = True
+
+    while run and len(players) > 0:
+        clock.tick(30)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                pygame.quit()
+
+        tree_index = 0
+        
+        for x, player in enumerate(players):
+            ge[x].fitness += 0.1 # increases skill of each player for every frame they live
+            player.move()
+        
+            # Sends Player information about its location and the nearest tree 
+            output = networks[players.index(player)].activate((player.x, abs(trees[tree_index].x - player.x), 60))
 
 
-    # flip() the display to put your work on screen
-    pygame.display.flip()
+            if output[0] > 0.5:
+                player.jump()
+            
+        ground.move()
 
-    clock.tick(60)  # limits FPS to 60
+        rem = []
+        add_tree = False
+        for tree in trees:
+            tree.move()
+            for player in players:
+                if tree.collision(player, window):
+                    ge[players.index(player)].fitness -= 1
+                    networks.pop(players.index(player))
+                    ge.pop(players.index(player))
+                    players.pop(players.index(player))
+                
+            if tree.x < 10:
+                rem.append(tree)
+                
+            if not tree.hopped and tree.x < player.x:
+                tree.hopped = True
+                add_tree = True
+                
+        if add_tree:
+            score += 1
+            for genome in ge:
+                genome.fitness += 5
+                trees.append(Tree(800))
 
-pygame.quit()
+        for r in rem:
+            trees.remove(r)
+
+        draw_window(WINDOW, players, trees, score, ground, generation, tree_index)
+
+def run(config_file):
+    # Load configuration.
+    config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                        neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                        config_file)
+
+    # Create the population, which is the top-level object for a NEAT run.
+    p = neat.Population(config)
+
+    # Add a stdout reporter to show progress in the terminal.
+    p.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    p.add_reporter(stats)
+
+    # Run for up to 20 generations.
+    winner = p.run(eval_genomes, 20)
+
+    # Display the winning genome.
+    print('\nBest genome:\n{!s}'.format(winner))
+
+if __name__ == '__main__':
+    # Determine path to configuration file. This path manipulation is
+    # here so that the script will run successfully regardless of the
+    # current working directory.
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, 'config-feedforward.txt')
+    run(config_path)
+        
+
+
+        
+        
+
+
+
+    
+
+        
+
+
