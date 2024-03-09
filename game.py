@@ -28,7 +28,7 @@ class Player:
 
     def jump(self):
         if not self.in_air:
-            self.velocity = -42
+            self.velocity = -110
             self.in_air = True
         
     def move(self):
@@ -50,13 +50,14 @@ class Player:
     
 
 class Tree:
-    speed = 5
+    speed = 7.5
 
     def __init__(self, x):
         self.x = x
         self.bottom = 0
         self.IMG = tree_img
         self.hopped = False
+        self.y = 50
 
     def move(self):
         self.x -= 7.5
@@ -176,10 +177,10 @@ def eval_genomes(genomes, config):
             player.move()
         
             # Sends Player information about its location and the nearest tree 
-            output = networks[players.index(player)].activate((player.x, abs(trees[tree_index].x - player.x), 60))
+            output = networks[players.index(player)].activate((player.x, abs(trees[tree_index].x - player.x), abs(player.y - trees[tree_index].y)))
 
-
-            if output[0] > 0.5:
+            if output[0] > .5:
+                print(output[0])
                 player.jump()
             
         ground.move()
@@ -240,16 +241,3 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config-feedforward.txt')
     run(config_path)
-        
-
-
-        
-        
-
-
-
-    
-
-        
-
-
