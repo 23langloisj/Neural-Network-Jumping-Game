@@ -14,6 +14,8 @@ SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 PLAYER = pygame.transform.scale2x(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/player.png"))
 
+SKY = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/background.png"), (500, SCREEN_WIDTH))
+
 TREE = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/tree.png"), (60, 180))
 
 BG = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/base.png"), (SCREEN_WIDTH, 150))
@@ -59,8 +61,8 @@ class Player:
     def draw(self, SCREEN):
         SCREEN.blit(self.image, (self.rect.x, self.rect.y))
         pygame.draw.rect(SCREEN, self.color, (self.rect.x, self.rect.y, self.rect.width, self.rect.height), 2)
-        for obstacle in obstacles:
-            pygame.draw.line(SCREEN, self.color, (self.rect.x + 54, self.rect.y + 12), obstacle.rect.center, 2)
+        for tree in trees:
+            pygame.draw.line(SCREEN, self.color, (self.rect.x + 54, self.rect.y + 12), tree.rect.center, 2)
 
 
 class Tree:
@@ -73,16 +75,16 @@ class Tree:
     def update(self):
         self.rect.x -= game_speed
         if self.rect.x < -self.rect.width:
-            obstacles.pop()
+            trees.pop()
 
     def draw(self, SCREEN):
         SCREEN.blit(self.image, self.rect)
 
 
 def remove(index):
-    dinosaurs.pop(index)
+    players.pop(index)
     ge.pop(index)
-    nets.pop(index)
+    networks.pop(index)
 
 
 def distance(pos_a, pos_b):
@@ -92,24 +94,24 @@ def distance(pos_a, pos_b):
 
 
 def eval_genomes(genomes, config):
-    global game_speed, x_pos_bg, y_pos_bg, obstacles, dinosaurs, ge, nets, points
+    global game_speed, x_pos_bg, y_pos_bg, trees, players, ge, networks, points
     clock = pygame.time.Clock()
     points = 0
 
-    obstacles = []
-    dinosaurs = []
+    trees = []
+    players = []
     ge = []
-    nets = []
+    networks = []
 
     x_pos_bg = 0
     y_pos_bg = 450
     game_speed = 20
 
     for genome_id, genome in genomes:
-        dinosaurs.append(Player())
+        players.append(Player())
         ge.append(genome)
-        net = neat.nn.FeedForwardNetwork.create(genome, config)
-        nets.append(net)
+        network = neat.nn.FeedForwardNetwork.create(genome, config)
+        networks.append(network)
         genome.fitness = 0
 
     def score():
@@ -121,8 +123,8 @@ def eval_genomes(genomes, config):
         SCREEN.blit(text, (950, 50))
 
     def statistics():
-        global dinosaurs, game_speed, ge
-        text_1 = FONT.render(f'Players Alive:  {str(len(dinosaurs))}', True, (0, 0, 0))
+        global players, game_speed, ge
+        text_1 = FONT.render(f'Players Alive:  {str(len(players))}', True, (0, 0, 0))
         text_2 = FONT.render(f'Generation:  {pop.generation+1}', True, (0, 0, 0))
         text_3 = FONT.render(f'Game Speed:  {str(game_speed)}', True, (0, 0, 0))
 
@@ -146,34 +148,34 @@ def eval_genomes(genomes, config):
                 pygame.quit()
                 sys.exit()
 
-        SCREEN.fill((255, 255, 255))
+        SCREEN.fill("#87CEEB")
 
-        for dinosaur in dinosaurs:
-            dinosaur.update()
-            dinosaur.draw(SCREEN)
+        for player in players:
+            player.update()
+            player.draw(SCREEN)
 
-        if len(dinosaurs) == 0:
+        if len(players) == 0:
             break
 
-        if len(obstacles) == 0:
-            obstacles.append(Tree())
+        if len(trees) == 0:
+            trees.append(Tree())
 
 
-        for obstacle in obstacles:
-            obstacle.draw(SCREEN)
-            obstacle.update()
-            for i, dinosaur in enumerate(dinosaurs):
-                if dinosaur.rect.colliderect(obstacle.rect):
+        for tree in trees:
+            tree.draw(SCREEN)
+            tree.update()
+            for i, player in enumerate(players):
+                if player.rect.colliderect(tree.rect):
                     ge[i].fitness -= 1
                     remove(i)
 
-        for i, dinosaur in enumerate(dinosaurs):
-            output = nets[i].activate((dinosaur.rect.y,
-                                       distance((dinosaur.rect.x, dinosaur.rect.y),
-                                        obstacle.rect.midtop), game_speed))
-            if output[0] > 0.5 and dinosaur.rect.y == dinosaur.Y_POS:
-                dinosaur.dino_jump = True
-                dinosaur.dino_run = False
+        for i, player in enumerate(players):
+            output = networks[i].activate((player.rect.y,
+                                       distance((player.rect.x, player.rect.y),
+                                        tree.rect.midtop), game_speed))
+            if output[0] > 0.5 and player.rect.y == player.Y_POS:
+                player.dino_jump = True
+                player.dino_run = False
                 print("IM JUMPING CUS MY VALUE IS: " + str(output[0]))
             print("Im not jumping because my output is: " + str(output[0]))
             print("Game speed is currently: " + str(game_speed))
