@@ -135,10 +135,16 @@ def eval_genomes(genomes, config):
     # Function to display the currents score of the players
     def display_score():
         global score, game_speed
+        for i, player in enumerate(players):
+            ge[i].fitness += 0.1
         score += 1
         # Slowly increases the speed / difficulty at which the game is played
         if score % 100 == 0:
             game_speed += 1
+        for i, player in enumerate(players):
+            ge[i].fitness += 0.1 * game_speed
+        if game_speed >= 50:
+            game_speed = 50
         text = FONT.render(f'Score:  {str(score)}', True, (0, 0, 0))
         SCREEN.blit(text, (950, 50))
 
@@ -193,7 +199,7 @@ def eval_genomes(genomes, config):
             tree.update()
             for i, player in enumerate(players):
                 if player.rect.colliderect(tree.rect):
-                    ge[i].fitness -= 1 # punishes players for hitting the tree
+                    ge[i].fitness -= 20 # punishes players for hitting the tree
                     # "kills" players that hit the tree
                     ge.pop(i) 
                     networks.pop(i)
