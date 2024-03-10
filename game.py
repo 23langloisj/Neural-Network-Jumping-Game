@@ -1,243 +1,206 @@
-# Necessary imports 
 import pygame
-import random
 import os
+import random
+import math
+import sys
 import neat
-pygame.font.init()  # init font
+
+pygame.init()
+
+# Global Constants
+SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1100
+SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+PLAYER = pygame.transform.scale2x(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/player.png"))
+
+TREE = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/tree.png"), (60, 180))
+
+BG = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/base.png"), (SCREEN_WIDTH, 150))
+
+FONT = pygame.font.Font('freesansbold.ttf', 20)
 
 
-WINDOW = pygame.display.set_mode((960, 720))
-pygame.display.set_caption("AI Learns to play Jumping game")
-gravity = 20
-generation = 0
-
-player_img = pygame.transform.scale2x(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/player.png").convert_alpha())
-tree_img = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/tree.png").convert_alpha(), (60,120))
-ground_img = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/base.png").convert_alpha(), (960, 150))
-background_img = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/background.png").convert_alpha(), (960, 720))
-
-
-# Represents the cube that is the player and its methods
 class Player:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.velocity = 0
-        self.IMG = player_img
-        self.in_air = False
+    X_POS = 200
+    Y_POS = 405
+    JUMP_VEL = 8.5
+
+    def __init__(self):
+        self.image = PLAYER
+        self.dino_run = True
+        self.dino_jump = False
+        self.jump_vel = self.JUMP_VEL
+        self.rect = pygame.Rect(self.X_POS, self.Y_POS, PLAYER.get_width(), PLAYER.get_height())
+        self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        self.step_index = 0
+
+    def update(self):
+        if self.dino_run:
+            self.run()
+        if self.dino_jump:
+            self.jump()
+        if self.step_index >= 10:
+            self.step_index = 0
 
     def jump(self):
-        if not self.in_air:
-            self.velocity = -110
-            self.in_air = True
-        
-    def move(self):
-        # for downward acceleration
-        self.velocity += gravity
+        if self.dino_jump:
+            self.rect.y -= self.jump_vel * 4
+            self.jump_vel -= 0.8
+        if self.jump_vel <= -self.JUMP_VEL:
+            self.dino_jump = False
+            self.dino_run = True
+            self.jump_vel = self.JUMP_VEL
 
-        self.y += self.velocity
+    def run(self):
+        self.rect.x = self.X_POS
+        self.rect.y = self.Y_POS
 
-        if self.y >= 550:
-            self.velocity = 0
-            self.y = 550
-            self.in_air = False
-            
-    def draw(self, surface):
-        surface.blit(self.IMG, (self.x, self.y))
+    def draw(self, SCREEN):
+        SCREEN.blit(self.image, (self.rect.x, self.rect.y))
+        pygame.draw.rect(SCREEN, self.color, (self.rect.x, self.rect.y, self.rect.width, self.rect.height), 2)
+        for obstacle in obstacles:
+            pygame.draw.line(SCREEN, self.color, (self.rect.x + 54, self.rect.y + 12), obstacle.rect.center, 2)
 
-    def get_mask(self):
-        return pygame.mask.from_surface(self.IMG)
-    
 
 class Tree:
-    speed = 7.5
+    def __init__(self):
+        self.image = TREE
+        self.rect = self.image.get_rect()
+        self.rect.x = SCREEN_WIDTH
+        self.rect.y = 295
 
-    def __init__(self, x):
-        self.x = x
-        self.bottom = 0
-        self.IMG = tree_img
-        self.hopped = False
-        self.y = 50
+    def update(self):
+        self.rect.x -= game_speed
+        if self.rect.x < -self.rect.width:
+            obstacles.pop()
 
-    def move(self):
-        self.x -= 7.5
+    def draw(self, SCREEN):
+        SCREEN.blit(self.image, self.rect)
 
-    def draw(self, window):
-        window.blit(self.IMG, (self.x, 460))
 
-    # Returns if a collision occurs between this tree and the player
-    def collision(self, player, window):
-        player_mask = player.get_mask()
-        tree_mask = pygame.mask.from_surface(self.IMG)
-        offset = (self.x - player.x, 460 - player.y)
-        result = player_mask.overlap(tree_mask, offset)
+def remove(index):
+    dinosaurs.pop(index)
+    ge.pop(index)
+    nets.pop(index)
 
-        if result:
-            return True
-        
-        return False
-        
 
-# Represents the Ground that randomly spawns obstacles that the player
-class Ground:
-    speed = 7.5
-    WIDTH = ground_img.get_width()
-    IMG = ground_img
+def distance(pos_a, pos_b):
+    dx = pos_a[0]-pos_b[0]
+    dy = pos_a[1]-pos_b[1]
+    return math.sqrt(dx**2+dy**2)
 
-    def __init__(self, y):
-        self.y = y
-        self.x1 = 0
-        self.x2 = self.WIDTH
-        
-    
-    def move(self):
-        self.x1 -= self.speed
-        self.x2 -= self.speed
-        if self.x1 + self.WIDTH < 0:
-            self.x1 = self.x2 + self.WIDTH
-        if self.x2 + self.WIDTH < 0:
-            self.x2 = self.x1 + self.WIDTH
-            
-    
-    def draw(self, window):
-        window.blit(self.IMG, (self.x1, self.y))
-        window.blit(self.IMG, (self.x2, self.y))
-
-def draw_window(window, players, trees, score, ground, generation, tree_index):
-    # Generation 0 DNE
-    if generation == 0:
-        generation = 1
-    
-    # Draw background onto the screen
-    window.blit(background_img, (0, 0))
-
-    # Draws the floor onto the screen
-    ground.draw(WINDOW)
-
-    for tree in trees:
-        tree.draw(WINDOW)
-    
-    for player in players:
-        # Draws Players COME BACK TO ADD VISION LINES
-        player.draw(WINDOW)
-    
-    # Draws the score of the game
-    score_label = pygame.font.SysFont("comicsans", 50).render("Score: " + str(score),1,(255,255,255))
-    window.blit(score_label, (480, 50))
-
-    # Draws the number of generations so far
-    score_label = pygame.font.SysFont("comicsans", 50).render("Gens: " + str(generation-1),1,(255,255,255))
-    window.blit(score_label, (10, 10))
-
-    # Draws number of players alive
-    score_label = pygame.font.SysFont("comicsans", 50).render("Alive: " + str(len(players)),1,(255,255,255))
-    window.blit(score_label, (10, 50))
-
-    pygame.display.update()
 
 def eval_genomes(genomes, config):
-    # Initialize necessary variables
-    global WINDOW, generation
-    window = WINDOW
-    generation += 1
+    global game_speed, x_pos_bg, y_pos_bg, obstacles, dinosaurs, ge, nets, points
+    clock = pygame.time.Clock()
+    points = 0
 
-    # Create a list of genomes, their associated neural networks, and 
-    # Players that will be using the neural networks to play
+    obstacles = []
+    dinosaurs = []
     ge = []
-    players = []
-    networks = []
+    nets = []
+
+    x_pos_bg = 0
+    y_pos_bg = 450
+    game_speed = 20
 
     for genome_id, genome in genomes:
-        genome.fitness = 0 # genomes start with no "skill"
-        net = neat.nn.FeedForwardNetwork.create(genome, config)
-        networks.append(net)
-        players.append(Player(300, 570))
+        dinosaurs.append(Player())
         ge.append(genome)
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
+        nets.append(net)
+        genome.fitness = 0
 
-    ground = Ground(570)
-    trees = [Tree(800)]
-    score = 0
+    def score():
+        global points, game_speed
+        points += 1
+        if points % 100 == 0:
+            game_speed += 1
+        text = FONT.render(f'Points:  {str(points)}', True, (0, 0, 0))
+        SCREEN.blit(text, (950, 50))
 
-    clock = pygame.time.Clock()
+    def statistics():
+        global dinosaurs, game_speed, ge
+        text_1 = FONT.render(f'Players Alive:  {str(len(dinosaurs))}', True, (0, 0, 0))
+        text_2 = FONT.render(f'Generation:  {pop.generation+1}', True, (0, 0, 0))
+        text_3 = FONT.render(f'Game Speed:  {str(game_speed)}', True, (0, 0, 0))
+
+        SCREEN.blit(text_1, (50, 20))
+        SCREEN.blit(text_2, (50, 50))
+        SCREEN.blit(text_3, (50, 80))
+
+    def background():
+        global x_pos_bg, y_pos_bg
+        image_width = BG.get_width()
+        SCREEN.blit(BG, (x_pos_bg, y_pos_bg))
+        SCREEN.blit(BG, (image_width + x_pos_bg, y_pos_bg))
+        if x_pos_bg <= -image_width:
+            x_pos_bg = 0
+        x_pos_bg -= game_speed
 
     run = True
-
-    while run and len(players) > 0:
-        clock.tick(30)
-
+    while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                run = False
                 pygame.quit()
+                sys.exit()
 
-        tree_index = 0
-        
-        for x, player in enumerate(players):
-            ge[x].fitness += 0.1 # increases skill of each player for every frame they live
-            player.move()
-        
-            # Sends Player information about its location and the nearest tree 
-            output = networks[players.index(player)].activate((player.x, abs(trees[tree_index].x - player.x), abs(player.y - trees[tree_index].y)))
+        SCREEN.fill((255, 255, 255))
 
-            if output[0] > .5:
-                print(output[0])
-                player.jump()
-            
-        ground.move()
+        for dinosaur in dinosaurs:
+            dinosaur.update()
+            dinosaur.draw(SCREEN)
 
-        rem = []
-        add_tree = False
-        for tree in trees:
-            tree.move()
-            for player in players:
-                if tree.collision(player, window):
-                    ge[players.index(player)].fitness -= 1
-                    networks.pop(players.index(player))
-                    ge.pop(players.index(player))
-                    players.pop(players.index(player))
-                
-            if tree.x < 10:
-                rem.append(tree)
-                
-            if not tree.hopped and tree.x < player.x:
-                tree.hopped = True
-                add_tree = True
-                
-        if add_tree:
-            score += 1
-            for genome in ge:
-                genome.fitness += 5
-                trees.append(Tree(800))
+        if len(dinosaurs) == 0:
+            break
 
-        for r in rem:
-            trees.remove(r)
+        if len(obstacles) == 0:
+            obstacles.append(Tree())
 
-        draw_window(WINDOW, players, trees, score, ground, generation, tree_index)
 
-def run(config_file):
-    # Load configuration.
-    config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                        neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                        config_file)
+        for obstacle in obstacles:
+            obstacle.draw(SCREEN)
+            obstacle.update()
+            for i, dinosaur in enumerate(dinosaurs):
+                if dinosaur.rect.colliderect(obstacle.rect):
+                    ge[i].fitness -= 1
+                    remove(i)
 
-    # Create the population, which is the top-level object for a NEAT run.
-    p = neat.Population(config)
+        for i, dinosaur in enumerate(dinosaurs):
+            output = nets[i].activate((dinosaur.rect.y,
+                                       distance((dinosaur.rect.x, dinosaur.rect.y),
+                                        obstacle.rect.midtop), game_speed))
+            if output[0] > 0.5 and dinosaur.rect.y == dinosaur.Y_POS:
+                dinosaur.dino_jump = True
+                dinosaur.dino_run = False
+                print("IM JUMPING CUS MY VALUE IS: " + str(output[0]))
+            print("Im not jumping because my output is: " + str(output[0]))
+            print("Game speed is currently: " + str(game_speed))
 
-    # Add a stdout reporter to show progress in the terminal.
-    p.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    p.add_reporter(stats)
+        statistics()
+        score()
+        background()
+        clock.tick(30)
+        pygame.display.update()
 
-    # Run for up to 20 generations.
-    winner = p.run(eval_genomes, 20)
 
-    # Display the winning genome.
-    print('\nBest genome:\n{!s}'.format(winner))
+# Setup the NEAT Neural Network
+def run(config_path):
+    global pop
+    config = neat.config.Config(
+        neat.DefaultGenome,
+        neat.DefaultReproduction,
+        neat.DefaultSpeciesSet,
+        neat.DefaultStagnation,
+        config_path
+    )
+
+    pop = neat.Population(config)
+    pop.run(eval_genomes, 50)
+
 
 if __name__ == '__main__':
-    # Determine path to configuration file. This path manipulation is
-    # here so that the script will run successfully regardless of the
-    # current working directory.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config-feedforward.txt')
     run(config_path)
