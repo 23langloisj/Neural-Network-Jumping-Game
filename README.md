@@ -10,7 +10,7 @@ NeuroJump is a simple machine learning-based jumping game developed using Pygame
 6. The game continues until all players in a generation either hit an obstacle or the user closes the game window.
 
 ## Dependencies
-- Python 3.x
+- Python 3.9.6
 - Pygame
 - NEAT (NeuroEvolution of Augmenting Topologies)
 ## Installation
