@@ -32,6 +32,7 @@ BG = pygame.transform.scale(pygame.image.load("/Users/jake.langlois/Desktop/MLJu
 
 # Font
 FONT = pygame.font.Font('freesansbold.ttf', 20)
+custom_font = pygame.font.Font('/Users/jake.langlois/Desktop/MLJumpingGame/funfont.ttf', 64)
 
 # Represents a Player
 class Player:
@@ -150,7 +151,7 @@ def eval_genomes(genomes, config):
         if game_speed >= 50:
             game_speed = 50
         text = FONT.render(f'Score:  {str(score)}', True, (0, 0, 0))
-        SCREEN.blit(text, (950, 50))
+        SCREEN.blit(text, (900, 120))
 
     # Function to display other informative statistics about the game
     def statistics():
@@ -158,10 +159,15 @@ def eval_genomes(genomes, config):
         text_1 = FONT.render(f'Players Alive:  {str(len(players))}', True, (0, 0, 0))
         text_2 = FONT.render(f'Generation:  {pop.generation+1}', True, (0, 0, 0))
         text_3 = FONT.render(f'Game Speed:  {str(game_speed)}', True, (0, 0, 0))
+        text_4 = custom_font.render("NeuroJump", True, (251, 208, 0))
+        shadow_text = custom_font.render("NeuroJump", True, (0, 0, 0))
+    
 
-        SCREEN.blit(text_1, (50, 20))
-        SCREEN.blit(text_2, (50, 50))
-        SCREEN.blit(text_3, (50, 80))
+        SCREEN.blit(text_1, (900, 20))
+        SCREEN.blit(text_2, (900, 50))
+        SCREEN.blit(text_3, (900, 80))
+        SCREEN.blit(shadow_text, (54, 34))
+        SCREEN.blit(text_4, (50, 30))
 
     # Function that draws the ground on the screen and gives it the affect of motion
     def background():
