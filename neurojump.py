@@ -14,6 +14,10 @@ SCREEN_HEIGHT = 600
 SCREEN_WIDTH = 1100
 SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
+# Audio
+boop_sound = pygame.mixer.Sound("COUNT5.wav")
+death_sound = pygame.mixer.Sound("DEATH.wav")
+
 # Player Sprite
 PLAYER = pygame.transform.scale2x(pygame.image.load("/Users/jake.langlois/Desktop/MLJumpingGame/images/player.png"))
 
@@ -139,10 +143,10 @@ def eval_genomes(genomes, config):
             ge[i].fitness += 0.1
         score += 1
         # Slowly increases the speed / difficulty at which the game is played
-        if score % 100 == 0:
+        if score % 25 == 0:
             game_speed += 1
         for i, player in enumerate(players):
-            ge[i].fitness += 1 * game_speed
+            ge[i].fitness += .25 * game_speed
         if game_speed >= 50:
             game_speed = 50
         text = FONT.render(f'Score:  {str(score)}', True, (0, 0, 0))
@@ -204,6 +208,7 @@ def eval_genomes(genomes, config):
                     ge.pop(i) 
                     networks.pop(i)
                     players.pop(i)
+                    death_sound.play()
 
         # Feeds the players information which the neural network will then decide whether or not to jump
         for i, player in enumerate(players):
@@ -217,6 +222,7 @@ def eval_genomes(genomes, config):
             if output[0] > 0.5 and player.rect.y == player.Y_POS:
                 player.dino_jump = True
                 player.dino_run = False
+                boop_sound.play()
                 print("I will jump because my output is: " + str(output[0])) # Debugging statements
             print("I will not jump because my output is: " + str(output[0]))
             print("Game speed is currently: " + str(game_speed))
@@ -241,7 +247,7 @@ def run(config_path):
     )
 
     pop = neat.Population(config)
-    pop.run(eval_genomes, 50)
+    pop.run(eval_genomes, 15)
 
 
 if __name__ == '__main__':
