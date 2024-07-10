@@ -15,7 +15,7 @@ NeuroJump is a simple machine learning-based jumping game developed using Pygame
 - NEAT (NeuroEvolution of Augmenting Topologies)
 ## Installation
 1. Clone the repository:
-`git clone https://github.com/your-username/NeuroJump.git`
+`git clone https://github.com/23langloisj/NeuroJump.git`
 2. Install dependencies:
 `pip install pygame neat-python`
 3. Run the game:
